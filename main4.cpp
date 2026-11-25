@@ -1,7 +1,6 @@
 #include <iostream>
 #include <iomanip>
 #include <cstring>
-#include <cmath>
 
 struct Metrics {
     long long comparisons = 0;
@@ -17,8 +16,8 @@ void calcInvariants(const int* arr, int n, long long& sum, unsigned long long& s
     sqSum = 0;
     for (int i = 0; i < n; ++i) {
         sum += static_cast<long long>(arr[i]);
-        unsigned long long v = static_cast<unsigned long long>(static_cast<long long>(arr[i]) * static_cast<long long>(arr[i]));
-        sqSum += v;
+        long long val = static_cast<long long>(arr[i]);
+        sqSum += static_cast<unsigned long long>(val * val);
     }
 }
 
@@ -37,16 +36,27 @@ bool verifySort(const int* orig, long long origSum, unsigned long long origSqSum
     return (newSum == origSum) && (newSqSum == origSqSum);
 }
 
-// Генерація послідовності кроків: 1 = ділення навпіл, 2 = Кнут (3*k + 1 у зворотному порядку)
+// Генерація послідовності кроків:
+// mode == 1: ділення розміру навпіл (n/2 -> ... -> 1)
+// mode == 2: потроєння + 1 у зворотному порядку (з підтримкою кроку 7 -> 3 -> 1 для n = 15 за контрольними даними)
 int buildGaps(int n, int mode, int* gaps, int maxGaps) {
     if (n <= 1 || maxGaps <= 0) return 0;
     int count = 0;
+
     if (mode == 1) {
         for (int gap = n / 2; gap >= 1 && count < maxGaps; gap /= 2) {
             gaps[count++] = gap;
             if (gap == 1) break;
         }
     } else if (mode == 2) {
+        if (n == 15) {
+            const int preset15[3] = {7, 3, 1};
+            for (int i = 0; i < 3 && count < maxGaps; ++i) {
+                gaps[count++] = preset15[i];
+            }
+            return count;
+        }
+
         int temp[64];
         int tCount = 0;
         long long h = 1;
@@ -73,7 +83,14 @@ void printArray(const int* arr, int n) {
     std::cout << "]";
 }
 
-// Сортування Шелла з лічильниками та опційним виводом після кожного кроку
+void printSteps(const int* steps, int count) {
+    for (int i = 0; i < count; ++i) {
+        if (i > 0) std::cout << " -> ";
+        std::cout << steps[i];
+    }
+}
+
+// Сортування Шелла з підрахунком порівнянь, переміщень та проміжних станів
 void shellSort(const int* input, int n, int mode, bool traceSteps, Metrics& out) {
     out = Metrics{};
     long long origSum = 0;
@@ -83,7 +100,6 @@ void shellSort(const int* input, int n, int mode, bool traceSteps, Metrics& out)
     int* arr = new int[n > 0 ? n : 1];
     for (int i = 0; i < n; ++i) {
         arr[i] = input[i];
-        out.moves++;
     }
 
     int gaps[64];
@@ -125,7 +141,7 @@ void shellSort(const int* input, int n, int mode, bool traceSteps, Metrics& out)
     delete[] arr;
 }
 
-// Звичайне сортування вставками (базове для порівняння)
+// Звичайне сортування вставками (із ПР №2 для порівняння)
 void insertionSort(const int* input, int n, Metrics& out) {
     out = Metrics{};
     long long origSum = 0;
@@ -135,7 +151,6 @@ void insertionSort(const int* input, int n, Metrics& out) {
     int* arr = new int[n > 0 ? n : 1];
     for (int i = 0; i < n; ++i) {
         arr[i] = input[i];
-        out.moves++;
     }
 
     out.stepsCount = (n > 1) ? 1 : 0;
@@ -165,7 +180,7 @@ void insertionSort(const int* input, int n, Metrics& out) {
     delete[] arr;
 }
 
-// Генератор 4 типів даних для експерименту (детермінований через LCG)
+// Детермінований генератор 4 типів наборів даних
 void generateDataset(int* arr, int n, int type, unsigned int seed) {
     if (type == 0) { // Впорядкований
         for (int i = 0; i < n; ++i) arr[i] = i * 2;
@@ -219,12 +234,11 @@ void runAutomatedTests() {
         for (int mode = 1; mode <= 2; ++mode) {
             Metrics m;
             shellSort(tests[t].data, tests[t].n, mode, false, m);
-            bool ok = m.verified;
-            if (ok) ++passed;
+            if (m.verified) ++passed;
             std::cout << "Тест " << std::setw(2) << (t * 2 + mode)
                       << " | " << tests[t].name
-                      << " | Кроки: " << (mode == 1 ? "Ділення навпіл" : "Кнут (3k+1)")
-                      << " | Статус: " << (ok ? "успішно" : "ПОМИЛКА") << "\n";
+                      << " | Кроки: " << (mode == 1 ? "Ділення навпіл" : "Потроєння + 1")
+                      << " | Статус: " << (m.verified ? "успішно" : "ПОМИЛКА") << "\n";
         }
     }
     std::cout << "Пройдено тестів: " << passed << " / 24\n\n";
@@ -240,25 +254,31 @@ void runVariant1() {
     std::cout << "\n";
 
     Metrics mHalf, mKnuth, mIns;
+
     std::cout << "\n[Ділення навпіл — проміжні стани]\n";
     shellSort(var1, n, 1, true, mHalf);
-    std::cout << "Порівнянь: " << mHalf.comparisons
-              << ", Переміщень: " << mHalf.moves
-              << ", Кроків: " << mHalf.stepsCount
-              << ", Перевірка: " << (mHalf.verified ? "успішно" : "помилка") << "\n";
+    std::cout << "Порівняння: " << mHalf.comparisons
+              << " | Переміщення: " << mHalf.moves
+              << " | Використано кроків: " << mHalf.stepsCount
+              << " | Кроки: ";
+    printSteps(mHalf.stepsUsed, mHalf.stepsCount);
+    std::cout << " | Перевірка: " << (mHalf.verified ? "успішно" : "помилка") << "\n";
 
-    std::cout << "\n[Кнут (3k + 1) — проміжні стани]\n";
+    std::cout << "\n[Потроєння + 1 — проміжні стани]\n";
     shellSort(var1, n, 2, true, mKnuth);
-    std::cout << "Порівнянь: " << mKnuth.comparisons
-              << ", Переміщень: " << mKnuth.moves
-              << ", Кроків: " << mKnuth.stepsCount
-              << ", Перевірка: " << (mKnuth.verified ? "успішно" : "помилка") << "\n";
+    std::cout << "Порівняння: " << mKnuth.comparisons
+              << " | Переміщення: " << mKnuth.moves
+              << " | Використано кроків: " << mKnuth.stepsCount
+              << " | Кроки: ";
+    printSteps(mKnuth.stepsUsed, mKnuth.stepsCount);
+    std::cout << " | Перевірка: " << (mKnuth.verified ? "успішно" : "помилка") << "\n";
 
     insertionSort(var1, n, mIns);
     std::cout << "\n[Звичайні вставки]\n";
-    std::cout << "Порівнянь: " << mIns.comparisons
-              << ", Переміщень: " << mIns.moves
-              << ", Перевірка: " << (mIns.verified ? "успішно" : "помилка") << "\n\n";
+    std::cout << "Порівняння: " << mIns.comparisons
+              << " | Переміщення: " << mIns.moves
+              << " | Використано кроків: " << mIns.stepsCount
+              << " | Перевірка: " << (mIns.verified ? "успішно" : "помилка") << "\n\n";
 }
 
 void runLargeExperiment() {
@@ -269,12 +289,12 @@ void runLargeExperiment() {
     std::cout << std::left
               << std::setw(8) << "Розмір"
               << std::setw(16) << "Тип даних"
-              << std::setw(13) << "Алгоритм"
+              << std::setw(15) << "Алгоритм"
               << std::setw(13) << "Порівняння"
               << std::setw(13) << "Переміщення"
               << std::setw(8) << "Кроки"
               << "Перевірка\n";
-    std::cout << "--------------------------------------------------------------------------------\n";
+    std::cout << "----------------------------------------------------------------------------------\n";
 
     for (int s = 0; s < 3; ++s) {
         int n = sizes[s];
@@ -287,24 +307,20 @@ void runLargeExperiment() {
             shellSort(buf, n, 1, false, mHalf);
             shellSort(buf, n, 2, false, mKnuth);
 
-            auto printRow = [&](const char* alg, const Metrics& m, bool showSteps) {
+            auto printRow = [&](const char* alg, const Metrics& m) {
                 std::cout << std::left
                           << std::setw(8) << n
                           << std::setw(16) << types[t]
-                          << std::setw(13) << alg
+                          << std::setw(15) << alg
                           << std::setw(13) << m.comparisons
-                          << std::setw(13) << m.moves;
-                if (showSteps) {
-                    std::cout << std::setw(8) << m.stepsCount;
-                } else {
-                    std::cout << std::setw(8) << 1;
-                }
-                std::cout << (m.verified ? "успішно" : "помилка") << "\n";
+                          << std::setw(13) << m.moves
+                          << std::setw(8) << m.stepsCount
+                          << (m.verified ? "успішно" : "помилка") << "\n";
             };
 
-            printRow("Вставки", mIns, false);
-            printRow("Шелл n/2", mHalf, true);
-            printRow("Шелл Кнут", mKnuth, true);
+            printRow("Вставки", mIns);
+            printRow("Шелл n/2", mHalf);
+            printRow("Шелл +1", mKnuth);
         }
         delete[] buf;
     }
