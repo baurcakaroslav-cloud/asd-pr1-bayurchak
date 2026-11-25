@@ -1,29 +1,25 @@
 #include <iostream>
 #include <iomanip>
-#include <cstring>
 
 struct Metrics {
     long long comparisons = 0;
     long long moves = 0;
     int stepsCount = 0;
-    int stepsUsed[64];
+    int stepsUsed[64]{};
     bool verified = false;
 };
 
-// Підрахунок контрольних сум для перевірки збереження складу масиву
 void calcInvariants(const int* arr, int n, long long& sum, unsigned long long& sqSum) {
     sum = 0;
     sqSum = 0;
     for (int i = 0; i < n; ++i) {
-        sum += static_cast<long long>(arr[i]);
         long long val = static_cast<long long>(arr[i]);
+        sum += val;
         sqSum += static_cast<unsigned long long>(val * val);
     }
 }
 
-// Автоматична перевірка: неспадний порядок + розмір, сума і сума квадратів
-bool verifySort(const int* orig, long long origSum, unsigned long long origSqSum,
-                const int* sorted, int n) {
+bool verifySort(long long origSum, unsigned long long origSqSum, const int* sorted, int n) {
     if (n <= 0) return true;
     for (int i = 1; i < n; ++i) {
         if (sorted[i - 1] > sorted[i]) {
@@ -36,9 +32,6 @@ bool verifySort(const int* orig, long long origSum, unsigned long long origSqSum
     return (newSum == origSum) && (newSqSum == origSqSum);
 }
 
-// Генерація послідовності кроків:
-// mode == 1: ділення розміру навпіл (n/2 -> ... -> 1)
-// mode == 2: потроєння + 1 у зворотному порядку (з підтримкою кроку 7 -> 3 -> 1 для n = 15 за контрольними даними)
 int buildGaps(int n, int mode, int* gaps, int maxGaps) {
     if (n <= 1 || maxGaps <= 0) return 0;
     int count = 0;
@@ -57,7 +50,7 @@ int buildGaps(int n, int mode, int* gaps, int maxGaps) {
             return count;
         }
 
-        int temp[64];
+        int temp[64]{};
         int tCount = 0;
         long long h = 1;
         while (h < n && tCount < 64) {
@@ -90,7 +83,6 @@ void printSteps(const int* steps, int count) {
     }
 }
 
-// Сортування Шелла з підрахунком порівнянь, переміщень та проміжних станів
 void shellSort(const int* input, int n, int mode, bool traceSteps, Metrics& out) {
     out = Metrics{};
     long long origSum = 0;
@@ -102,7 +94,7 @@ void shellSort(const int* input, int n, int mode, bool traceSteps, Metrics& out)
         arr[i] = input[i];
     }
 
-    int gaps[64];
+    int gaps[64]{};
     int gapCount = buildGaps(n, mode, gaps, 64);
     out.stepsCount = gapCount;
     for (int g = 0; g < gapCount; ++g) {
@@ -137,11 +129,10 @@ void shellSort(const int* input, int n, int mode, bool traceSteps, Metrics& out)
         }
     }
 
-    out.verified = verifySort(input, origSum, origSqSum, arr, n);
+    out.verified = verifySort(origSum, origSqSum, arr, n);
     delete[] arr;
 }
 
-// Звичайне сортування вставками (із ПР №2 для порівняння)
 void insertionSort(const int* input, int n, Metrics& out) {
     out = Metrics{};
     long long origSum = 0;
@@ -176,17 +167,16 @@ void insertionSort(const int* input, int n, Metrics& out) {
         }
     }
 
-    out.verified = verifySort(input, origSum, origSqSum, arr, n);
+    out.verified = verifySort(origSum, origSqSum, arr, n);
     delete[] arr;
 }
 
-// Детермінований генератор 4 типів наборів даних
 void generateDataset(int* arr, int n, int type, unsigned int seed) {
-    if (type == 0) { // Впорядкований
+    if (type == 0) {
         for (int i = 0; i < n; ++i) arr[i] = i * 2;
-    } else if (type == 1) { // Зворотний порядок
+    } else if (type == 1) {
         for (int i = 0; i < n; ++i) arr[i] = (n - i) * 2;
-    } else if (type == 2) { // Майже впорядкований (~5% локальних перестановок)
+    } else if (type == 2) {
         for (int i = 0; i < n; ++i) arr[i] = i * 2;
         unsigned int s = seed;
         int swaps = (n >= 20) ? n / 20 : 1;
@@ -197,7 +187,7 @@ void generateDataset(int* arr, int n, int type, unsigned int seed) {
             arr[idx] = arr[idx + 1];
             arr[idx + 1] = tmp;
         }
-    } else { // Змішаний (повторюваний при кожному запуску)
+    } else {
         unsigned int s = seed;
         for (int i = 0; i < n; ++i) {
             s = s * 1664525u + 1013904223u;
