@@ -39,7 +39,6 @@ void printIndent(int depth) {
 }
 
 // 1. Злиття двох сусідніх упорядкованих частин [left, mid) та [mid, right)
-// Використовує один допоміжний масив temp; при рівності бере елемент зліва.
 void mergeParts(int* arr, int* temp, int left, int mid, int right,
                 Stats& st, bool trace = false, int depth = 0) {
     if (left >= mid || mid >= right) {
@@ -309,7 +308,8 @@ void quickSort(int* arr, int n, Stats& st) {
     if (n > 1) quickSortRec(arr, 0, n - 1, st, 1);
 }
 
-void siftDown(int* arr, int n, int i, Stats& st) {
+void siftDown(int* arr, int n, int i, Stats& st, int depth) {
+    if (depth > st.maxDepth) st.maxDepth = depth;
     int largest = i;
     int l = 2 * i + 1;
     int r = 2 * i + 2;
@@ -328,7 +328,7 @@ void siftDown(int* arr, int n, int i, Stats& st) {
         arr[i] = arr[largest];
         arr[largest] = tmp;
         st.mainWrites += 2;
-        siftDown(arr, n, largest, st);
+        siftDown(arr, n, largest, st, depth + 1);
     }
 }
 
@@ -337,14 +337,14 @@ void heapSort(int* arr, int n, Stats& st) {
     if (n <= 1) return;
 
     for (int i = n / 2 - 1; i >= 0; --i) {
-        siftDown(arr, n, i, st);
+        siftDown(arr, n, i, st, 1);
     }
     for (int i = n - 1; i > 0; --i) {
         int tmp = arr[0];
         arr[0] = arr[i];
         arr[i] = tmp;
         st.mainWrites += 2;
-        siftDown(arr, i, 0, st);
+        siftDown(arr, i, 0, st, 1);
     }
 }
 
@@ -415,12 +415,13 @@ int main() {
     std::cout << "Статистика трасування: порівнянь=" << traceSt.comparisons
               << ", доп.записів=" << traceSt.auxWrites
               << ", осн.записів=" << traceSt.mainWrites
+              << ", усього записів=" << traceSt.totalWrites()
               << ", злиттів=" << traceSt.merges
               << ", макс.глибина=" << traceSt.maxDepth << "\n";
 
-    // Приклад індивідуального набору з 16 елементів (замініть на свій варіант)
+    // Варіант № 1 (16 елементів)
     int variantData[16] = {22, 5, 18, 2, 27, 10, 7, 20, 1, 16, 9, 25, 4, 14, 29, 6};
-    printCompareTable("Порівняння на індивідуальному наборі", variantData, 16, temp);
+    printCompareTable("Порівняння на індивідуальному наборі (Варіант № 1)", variantData, 16, temp);
 
     delete[] temp;
     return 0;
